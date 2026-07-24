@@ -1,0 +1,30 @@
+# prod
+dist/
+dist-server/
+
+# dev
+.vscode/*
+!.vscode/launch.json
+.idea/
+
+# deps
+node_modules/
+.wrangler
+
+# generated
+# app/pages.gen.ts は vite が自動生成するが、clone 直後でも型が通るようコミットしている
+worker-configuration.d.ts
+
+# env
+.env
+.env.production
+.dev.vars
+
+# logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# misc
+.DS_Store

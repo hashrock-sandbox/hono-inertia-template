@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hono-inertia-template",
+  "main": "./app/server.ts",
+  "compatibility_date": "2025-08-03",
+  "compatibility_flags": ["nodejs_compat"]
+
+  // D1 を使うときは `wrangler d1 create <name>` の出力を貼り付けて有効化する。
+  // "d1_databases": [
+  //   {
+  //     "binding": "DB",
+  //     "database_name": "hono-inertia-template-db",
+  //     "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+  //   }
+  // ]
+}

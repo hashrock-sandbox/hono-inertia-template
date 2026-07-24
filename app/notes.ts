@@ -1,0 +1,87 @@
+/**
+ * サンプル用のインメモリ Note ストア。
+ *
+ * データは Worker の isolate のメモリ上にしかないので、`pnpm dev` を再起動したり
+ * Cloudflare 側で isolate が入れ替わったりすると消える。本番用途にはならない
+ * ——「Inertia のルーティングとフォームの書き方」を示すためだけの置き場所。
+ * 実運用では D1 + Drizzle などに差し替える（README の「DB を足す」を参照）。
+ */
+
+export type Note = {
+  id: string
+  title: string
+  body: string
+  createdAt: string
+  updatedAt: string
+}
+
+const now = () => new Date().toISOString()
+
+const store = new Map<string, Note>()
+
+// 初回アクセス時の見た目が空にならないようにサンプルを 1 件入れておく。
+seed()
+
+function seed() {
+  const at = now()
+  const id = 'welcome'
+  store.set(id, {
+    id,
+    title: 'ようこそ',
+    body:
+      'これは Hono + Inertia テンプレートのサンプルノートです。\n' +
+      '編集・削除・新規作成をひととおり試せます。',
+    createdAt: at,
+    updatedAt: at,
+  })
+}
+
+/** 更新日時の新しい順に全件返す。 */
+export function listNotes(): Note[] {
+  return [...store.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+}
+
+export function findNote(id: string): Note | undefined {
+  return store.get(id)
+}
+
+export function createNote(input: { title: string; body: string }): Note {
+  const at = now()
+  const note: Note = {
+    id: crypto.randomUUID(),
+    title: input.title,
+    body: input.body,
+    createdAt: at,
+    updatedAt: at,
+  }
+  store.set(note.id, note)
+  return note
+}
+
+export function updateNote(
+  id: string,
+  input: { title: string; body: string }
+): Note | undefined {
+  const note = store.get(id)
+  if (!note) return undefined
+  const updated: Note = { ...note, ...input, updatedAt: now() }
+  store.set(id, updated)
+  return updated
+}
+
+export function deleteNote(id: string): boolean {
+  return store.delete(id)
+}
+
+/** フォーム入力のバリデーション。エラーがなければ空オブジェクトを返す。 */
+export function validateNote(input: { title?: unknown; body?: unknown }) {
+  const errors: Record<string, string> = {}
+  const title = typeof input.title === 'string' ? input.title.trim() : ''
+  const body = typeof input.body === 'string' ? input.body : ''
+
+  if (!title) errors.title = 'タイトルは必須です'
+  else if (title.length > 100) errors.title = 'タイトルは 100 文字以内で入力してください'
+  if (body.length > 10000) errors.body = '本文は 10000 文字以内で入力してください'
+
+  return { errors, values: { title, body } }
+}
