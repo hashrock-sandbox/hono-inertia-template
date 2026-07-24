@@ -30,6 +30,7 @@ app/
   client.tsx         Inertia クライアントの起動
   root-view.tsx      SSR する HTML シェル
   styles.css         Tailwind エントリ
+  env.ts             Worker の環境型（バインディングを足す場所）
   notes.ts           サンプルのインメモリストア
   pages.gen.ts       ページ名と props 型（vite が自動生成）
   pages/**           Inertia ページ（ファイル名 = c.render の第1引数）
@@ -90,7 +91,7 @@ pnpm wrangler d1 create <db-name>       # 出力の database_id を wrangler.jso
 ```
 
 `wrangler.jsonc` のコメントアウトされた `d1_databases` を有効化し、
-`app/global.d.ts` の `Bindings` に `DB: D1Database` を足すと `c.env.DB` が型付きで使えます。
+`app/env.ts` の `Bindings` に `DB: D1Database` を足すと `c.env.DB` が型付きで使えます。
 あとは `app/notes.ts` の各関数を Drizzle のクエリに置き換えるだけです。
 
 **Cloudflare KV** — 単純な key-value でよければ `kv_namespaces` を足すのが最短です。
@@ -98,7 +99,7 @@ pnpm wrangler d1 create <db-name>       # 出力の database_id を wrangler.jso
 ### 認証
 
 このテンプレートには含めていません。追加するなら Hono のミドルウェアで
-`c.set('user', ...)` し、`app/global.d.ts` の `Variables` に型を足すのが素直です。
+`c.set('user', ...)` し、`app/env.ts` の `Variables` に型を足すのが素直です。
 
 ## メモ
 

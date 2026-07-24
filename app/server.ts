@@ -1,4 +1,4 @@
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
 import { inertia } from '@hono/inertia'
 import { rootView } from './root-view'
 import {
@@ -6,10 +6,11 @@ import {
   deleteNote,
   findNote,
   listNotes,
+  NO_ERRORS,
   updateNote,
   validateNote,
 } from './notes'
-import type { Env } from './global.d'
+import type { Env } from './env'
 
 const app = new Hono<Env>()
 
@@ -22,7 +23,7 @@ app.use(inertia({ rootView }))
  * Inertia の `useForm` は既定で JSON を送るが、JS 無効時の素の <form> POST や
  * ファイル添付時は FormData で飛んでくる。どちらでも受けられるようにしておく。
  */
-async function readBody(c: { req: { json: () => Promise<unknown>; parseBody: () => Promise<Record<string, unknown>> } }) {
+async function readBody(c: Context) {
   try {
     return (await c.req.json()) as Record<string, unknown>
   } catch {
@@ -48,7 +49,7 @@ const routes = app
   .get('/notes/new', (c) =>
     c.render('Notes/New', {
       values: { title: '', body: '' },
-      errors: {} as Record<string, string>,
+      errors: NO_ERRORS,
     })
   )
 
@@ -83,7 +84,7 @@ const routes = app
     return c.render('Notes/Edit', {
       note,
       values: { title: note.title, body: note.body },
-      errors: {} as Record<string, string>,
+      errors: NO_ERRORS,
     })
   })
 

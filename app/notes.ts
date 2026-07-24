@@ -15,26 +15,28 @@ export type Note = {
   updatedAt: string
 }
 
+/** フォームの入力値。エラー表示のために再レンダー時もそのまま返す。 */
+export type NoteInput = { title: string; body: string }
+
+/** フィールド名 → エラーメッセージ。エラーなしなら空。 */
+export type NoteErrors = { title?: string; body?: string }
+
+export const NO_ERRORS: NoteErrors = {}
+
 const now = () => new Date().toISOString()
 
-const store = new Map<string, Note>()
-
 // 初回アクセス時の見た目が空にならないようにサンプルを 1 件入れておく。
-seed()
-
-function seed() {
-  const at = now()
-  const id = 'welcome'
-  store.set(id, {
-    id,
-    title: 'ようこそ',
-    body:
-      'これは Hono + Inertia テンプレートのサンプルノートです。\n' +
-      '編集・削除・新規作成をひととおり試せます。',
-    createdAt: at,
-    updatedAt: at,
-  })
+const seed: Note = {
+  id: 'welcome',
+  title: 'ようこそ',
+  body:
+    'これは Hono + Inertia テンプレートのサンプルノートです。\n' +
+    '編集・削除・新規作成をひととおり試せます。',
+  createdAt: now(),
+  updatedAt: now(),
 }
+
+const store = new Map<string, Note>([[seed.id, seed]])
 
 /** 更新日時の新しい順に全件返す。 */
 export function listNotes(): Note[] {
@@ -45,7 +47,7 @@ export function findNote(id: string): Note | undefined {
   return store.get(id)
 }
 
-export function createNote(input: { title: string; body: string }): Note {
+export function createNote(input: NoteInput): Note {
   const at = now()
   const note: Note = {
     id: crypto.randomUUID(),
@@ -58,10 +60,7 @@ export function createNote(input: { title: string; body: string }): Note {
   return note
 }
 
-export function updateNote(
-  id: string,
-  input: { title: string; body: string }
-): Note | undefined {
+export function updateNote(id: string, input: NoteInput): Note | undefined {
   const note = store.get(id)
   if (!note) return undefined
   const updated: Note = { ...note, ...input, updatedAt: now() }
@@ -73,9 +72,12 @@ export function deleteNote(id: string): boolean {
   return store.delete(id)
 }
 
-/** フォーム入力のバリデーション。エラーがなければ空オブジェクトを返す。 */
-export function validateNote(input: { title?: unknown; body?: unknown }) {
-  const errors: Record<string, string> = {}
+/** フォーム入力のバリデーション。正規化した値と、フィールドごとのエラーを返す。 */
+export function validateNote(input: { title?: unknown; body?: unknown }): {
+  errors: NoteErrors
+  values: NoteInput
+} {
+  const errors: NoteErrors = {}
   const title = typeof input.title === 'string' ? input.title.trim() : ''
   const body = typeof input.body === 'string' ? input.body : ''
 

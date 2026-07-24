@@ -11,9 +11,6 @@ importers:
       '@hono/inertia':
         specifier: ^0.7.0
         version: 0.7.0(hono@4.12.31)(vite@6.4.3(jiti@2.7.0)(lightningcss@1.32.0))
-      '@inertiajs/core':
-        specifier: ^3.0.3
-        version: 3.6.1
       '@inertiajs/react':
         specifier: ^3.3.0
         version: 3.6.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
