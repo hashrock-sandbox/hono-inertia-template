@@ -6,9 +6,9 @@ import {
   deleteNote,
   findNote,
   listNotes,
-  NO_ERRORS,
   updateNote,
   validateNote,
+  type NoteErrors,
 } from './notes'
 import type { Env } from './env'
 
@@ -23,7 +23,7 @@ app.use(inertia({ rootView }))
  * Inertia の `useForm` は既定で JSON を送るが、JS 無効時の素の <form> POST や
  * ファイル添付時は FormData で飛んでくる。どちらでも受けられるようにしておく。
  */
-async function readBody(c: Context) {
+async function readBody(c: Context<Env>) {
   try {
     return (await c.req.json()) as Record<string, unknown>
   } catch {
@@ -49,19 +49,18 @@ const routes = app
   .get('/notes/new', (c) =>
     c.render('Notes/New', {
       values: { title: '', body: '' },
-      errors: NO_ERRORS,
+      errors: {} as NoteErrors,
     })
   )
 
   // 作成
   .post('/notes', async (c) => {
-    const body = await readBody(c)
-    const { errors, values } = validateNote(body)
+    const { ok, errors, values } = validateNote(await readBody(c))
     // エラーがあれば同じページを props 付きで返すだけ。Inertia が差分を
     // 差し替えるので、入力内容を保ったままエラーを表示できる。
     // 非 GET の page.url は Referer が使われるのでアドレスバーは
     // /notes/new のまま。明示するなら c.render(name, props, { url: '/notes/new' })。
-    if (Object.keys(errors).length > 0) {
+    if (!ok) {
       return c.render('Notes/New', { values, errors })
     }
     const note = createNote(values)
@@ -84,7 +83,7 @@ const routes = app
     return c.render('Notes/Edit', {
       note,
       values: { title: note.title, body: note.body },
-      errors: NO_ERRORS,
+      errors: {} as NoteErrors,
     })
   })
 
@@ -92,8 +91,8 @@ const routes = app
   .put('/notes/:id', async (c) => {
     const note = findNote(c.req.param('id'))
     if (!note) return c.notFound()
-    const { errors, values } = validateNote(await readBody(c))
-    if (Object.keys(errors).length > 0) {
+    const { ok, errors, values } = validateNote(await readBody(c))
+    if (!ok) {
       return c.render('Notes/Edit', { note, values, errors })
     }
     updateNote(note.id, values)

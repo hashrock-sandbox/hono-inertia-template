@@ -1,10 +1,15 @@
-import { Link } from '@inertiajs/react'
+import { Link, type InertiaFormProps } from '@inertiajs/react'
 import type { NoteErrors, NoteInput } from '../notes'
 
 /**
  * 新規作成と編集で共有するフォーム本体。
  * `useForm` の呼び出し（＝送信先とメソッドの決定）は各ページに残し、
  * ここは入力欄とエラー表示だけを受け持つ。
+ *
+ * `data` / `setData` / `processing` の型は `useForm` の戻り値から借りる。
+ * 送信中の表示は `submitLabel` と対にせず「送信中…」で共通化している
+ * （ラベルを 2 つ受け取るほどの違いではないという割り切り）。
+ * `errors` はサーバが返した props を使うので `useForm` 側とは別に受ける。
  */
 export function NoteForm({
   data,
@@ -14,11 +19,8 @@ export function NoteForm({
   onSubmit,
   submitLabel,
   cancelHref,
-}: {
-  data: NoteInput
-  setData: (key: keyof NoteInput, value: string) => void
+}: Pick<InertiaFormProps<NoteInput>, 'data' | 'setData' | 'processing'> & {
   errors: NoteErrors
-  processing: boolean
   onSubmit: () => void
   submitLabel: string
   cancelHref: string

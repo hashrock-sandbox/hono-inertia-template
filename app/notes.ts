@@ -18,22 +18,21 @@ export type Note = {
 /** フォームの入力値。エラー表示のために再レンダー時もそのまま返す。 */
 export type NoteInput = { title: string; body: string }
 
-/** フィールド名 → エラーメッセージ。エラーなしなら空。 */
-export type NoteErrors = { title?: string; body?: string }
-
-export const NO_ERRORS: NoteErrors = {}
+/** フィールド名 → エラーメッセージ。エラーなしなら空。NoteInput から導出する。 */
+export type NoteErrors = Partial<Record<keyof NoteInput, string>>
 
 const now = () => new Date().toISOString()
 
 // 初回アクセス時の見た目が空にならないようにサンプルを 1 件入れておく。
+const seededAt = now()
 const seed: Note = {
   id: 'welcome',
   title: 'ようこそ',
   body:
     'これは Hono + Inertia テンプレートのサンプルノートです。\n' +
     '編集・削除・新規作成をひととおり試せます。',
-  createdAt: now(),
-  updatedAt: now(),
+  createdAt: seededAt,
+  updatedAt: seededAt,
 }
 
 const store = new Map<string, Note>([[seed.id, seed]])
@@ -74,6 +73,7 @@ export function deleteNote(id: string): boolean {
 
 /** フォーム入力のバリデーション。正規化した値と、フィールドごとのエラーを返す。 */
 export function validateNote(input: { title?: unknown; body?: unknown }): {
+  ok: boolean
   errors: NoteErrors
   values: NoteInput
 } {
@@ -85,5 +85,5 @@ export function validateNote(input: { title?: unknown; body?: unknown }): {
   else if (title.length > 100) errors.title = 'タイトルは 100 文字以内で入力してください'
   if (body.length > 10000) errors.body = '本文は 10000 文字以内で入力してください'
 
-  return { errors, values: { title, body } }
+  return { ok: Object.keys(errors).length === 0, errors, values: { title, body } }
 }
