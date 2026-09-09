@@ -1,7 +1,5 @@
-import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
-import type { Bindings } from '../env'
-import { authCookieOptions, authSecret, envFlag } from './cookie'
-import type { AuthProvider, SessionUser } from './provider'
+import { signedAuthCookie } from './cookie'
+import { parseSessionUser, type AuthProvider, type SessionUser } from './provider'
 
 /** signIn で書く「誰として入っているか」の署名 Cookie。sessionAuth はこれを一切読まない。 */
 export const IMPERSONATE_COOKIE = 'impersonate'
@@ -13,36 +11,33 @@ export const DEV_USER: SessionUser = {
   email: 'dev@example.com',
 }
 
-export function isBypassEnabled(env: Bindings): boolean {
-  return envFlag(env.DEV_BYPASS_AUTH) || envFlag(env.BYPASS_AUTH)
+/** signOut が書く値。Cookie を消すと Dev User に戻ってしまうので、「未ログイン」も Cookie で表す。 */
+const GUEST = 'guest'
+
+const impersonate = signedAuthCookie(IMPERSONATE_COOKIE)
+
+function parseJson(value: string): unknown {
+  try {
+    return JSON.parse(value)
+  } catch {
+    return null
+  }
 }
 
 /**
- * 開発・UI テスト用の AuthProvider。DB を使わず、ユーザはインメモリに置く。
+ * 開発・UI テスト用の AuthProvider。DB を使わず、ユーザは署名 Cookie にそのまま載せる。
  *
- * - resolve : 署名付き impersonate Cookie があればそのユーザ、無ければ DEV_USER。
- *             `?guest=1` を付けると未ログイン状態を見られる（dev トグルはここに集める。ミドルウェアには置かない）。
- * - signIn  : ユーザを登録し、id を署名して Cookie に書く。
- * - signOut : Cookie を消す（次のリクエストからは DEV_USER に戻る）。
- *
- * isolate の再起動などで登録が消えた id は DEV_USER にフォールバックする。
+ * - resolve : impersonate Cookie があればそのユーザ、`guest` なら未ログイン、無ければ DEV_USER。
+ * - signIn  : ユーザを JSON にして署名 Cookie に書く（ストア不要なので isolate 再起動でも消えない）。
+ * - signOut : `guest` を書く。未ログイン状態を見たいときは /auth/signout を叩けばよい。
  */
-export function bypassAuth(): AuthProvider {
-  const users = new Map<string, SessionUser>([[DEV_USER.id, DEV_USER]])
-
-  return {
-    async resolve(c) {
-      if (c.req.query('guest') === '1') return null
-      const id = await getSignedCookie(c, authSecret(c.env), IMPERSONATE_COOKIE)
-      if (!id) return DEV_USER
-      return users.get(id) ?? DEV_USER
-    },
-    async signIn(c, user) {
-      users.set(user.id, user)
-      await setSignedCookie(c, IMPERSONATE_COOKIE, user.id, authSecret(c.env), authCookieOptions(c))
-    },
-    async signOut(c) {
-      deleteCookie(c, IMPERSONATE_COOKIE, { path: '/' })
-    },
-  }
+export const bypassAuth: AuthProvider = {
+  async resolve(c) {
+    const value = await impersonate.read(c)
+    if (!value) return DEV_USER
+    if (value === GUEST) return null
+    return parseSessionUser(parseJson(value)) ?? DEV_USER
+  },
+  signIn: (c, user) => impersonate.write(c, JSON.stringify(user)),
+  signOut: (c) => impersonate.write(c, GUEST),
 }

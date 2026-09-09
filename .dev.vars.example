@@ -3,5 +3,4 @@
 DEV_BYPASS_AUTH=1
 # /__scenarios/* を有効にする。本番では設定しない
 SCENARIOS_ENABLED=1
-# Cookie 署名の秘密鍵。未設定なら開発用の固定値が使われる。本番は `wrangler secret put AUTH_SECRET`
-AUTH_SECRET=change-me-in-production
+# Cookie 署名の秘密鍵 AUTH_SECRET は未設定なら開発用の固定値になる。本番は `wrangler secret put AUTH_SECRET`

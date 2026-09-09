@@ -17,9 +17,6 @@ export type ScenarioResult = {
   seeded: Record<string, number>
 }
 
-/** 時刻を固定して「更新: …」の表示と並び順を決定的にする。 */
-const FIXED_TIME = '2026-01-01T00:00:00.000Z'
-
 /** シナリオごとに使い捨てユーザを作る。id は毎回変え、表示名は固定にする。 */
 export function createScenarioUser(scenario: string): SessionUser {
   const suffix = crypto.randomUUID().slice(0, 8)
@@ -47,21 +44,13 @@ export const scenarios: Scenario[] = [
       const samples = [
         { title: '買い物リスト', body: '牛乳\n卵\nパン' },
         { title: '会議メモ', body: `${user.name} が担当。来週までにドラフトを出す。` },
-        { title: '', body: '' },
+        { title: '無題 3', body: '' },
       ]
+      // id と時刻を固定して「更新: …」の表示と並び順を決定的にする。
       const notes = samples.map((input, i) =>
-        createNote(
-          { title: input.title || `無題 ${i + 1}`, body: input.body },
-          { id: `scenario-note-${i + 1}`, now: `2026-01-0${i + 1}T00:00:00.000Z` }
-        )
+        createNote(input, { id: `scenario-note-${i + 1}`, now: `2026-01-0${i + 1}T00:00:00.000Z` })
       )
       return { redirect: '/notes', seeded: { notes: notes.length } }
     },
   },
 ]
-
-export function findScenario(name: string): Scenario | undefined {
-  return scenarios.find((s) => s.name === name)
-}
-
-export { FIXED_TIME }

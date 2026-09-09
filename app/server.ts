@@ -12,7 +12,7 @@ import {
 } from './notes'
 import type { Env } from './env'
 import { authFromEnv, authMiddleware, requireUser, type AuthProvider } from './auth'
-import { scenarioRoutes } from './scenarios'
+import { SCENARIOS_BASE, scenarioRoutes } from './scenarios'
 
 /**
  * Inertia の `useForm` は既定で JSON を送るが、JS 無効時の素の <form> POST や
@@ -26,19 +26,14 @@ async function readBody(c: Context<Env>) {
   }
 }
 
-export type AppOptions = {
-  /**
-   * 認証の実装。省略時は env で本番（sessionAuth）/ バイパス（bypassAuth）を選ぶ。
-   * テストでは resolve が固定ユーザを返すモックを渡せば DB なしでハンドラを検証できる。
-   */
-  auth?: AuthProvider
-}
-
 /**
  * アプリを組み立てる。Worker のエントリ（default export）はこれを引数なしで呼んだもの。
  * ルートをこの中に書くのは、`auth` を差し替えたインスタンスをテストで作れるようにするため。
+ *
+ * `auth` を省略すると env で本番（sessionAuth）/ バイパス（bypassAuth）を選ぶ。
+ * テストでは resolve が固定ユーザを返すモックを渡せば DB なしでハンドラを検証できる。
  */
-export function createApp({ auth = authFromEnv() }: AppOptions = {}) {
+export function createApp({ auth = authFromEnv() }: { auth?: AuthProvider } = {}) {
   const app = new Hono<Env>()
 
   // Inertia ミドルウェア。これで `c.render(component, props)` が使えるようになる。
@@ -134,11 +129,9 @@ export function createApp({ auth = authFromEnv() }: AppOptions = {}) {
     })
 
     // UI テスト用シナリオ（SCENARIOS_ENABLED が真のときだけ応答）
-    .route('/__scenarios', scenarioRoutes(auth))
+    .route(SCENARIOS_BASE, scenarioRoutes(auth))
 
   return routes
 }
 
-const app = createApp()
-
-export default app
+export default createApp()

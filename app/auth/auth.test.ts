@@ -1,8 +1,16 @@
 import { Hono } from 'hono'
 import { describe, expect, it } from 'vitest'
 import type { Bindings, Env } from '../env'
-import { authFromEnv, authMiddleware, bypassAuth, DEV_USER, sessionAuth, type AuthProvider, type SessionUser } from './index'
-import { IMPERSONATE_COOKIE } from './bypassAuth'
+import {
+  authFromEnv,
+  authMiddleware,
+  bypassAuth,
+  DEV_USER,
+  IMPERSONATE_COOKIE,
+  sessionAuth,
+  type AuthProvider,
+  type SessionUser,
+} from './index'
 
 const alice: SessionUser = { id: 'alice', name: 'Alice', email: 'alice@example.com' }
 
@@ -41,36 +49,33 @@ async function whoami(app: ReturnType<typeof harness>, cookie: string, env: Bind
 
 /** バイパス provider で alice としてログインしたときの署名 impersonate Cookie。 */
 async function impersonateCookie(): Promise<string> {
-  const res = await post(harness(bypassAuth()), '/signin')
-  const cookie = cookieHeader(res)
+  const cookie = cookieHeader(await post(harness(bypassAuth), '/signin'))
   expect(cookie).toContain(`${IMPERSONATE_COOKIE}=`)
   return cookie
 }
 
 describe('bypassAuth', () => {
   it('Cookie が無ければ Dev User になる', async () => {
-    expect(await whoami(harness(bypassAuth()), '')).toEqual({ user: DEV_USER })
+    expect(await whoami(harness(bypassAuth), '')).toEqual({ user: DEV_USER })
   })
 
   it('signIn した後は impersonate Cookie でそのユーザになる', async () => {
-    const app = harness(bypassAuth())
-    const cookie = cookieHeader(await post(app, '/signin'))
-    expect(await whoami(app, cookie)).toEqual({ user: alice })
+    const app = harness(bypassAuth)
+    expect(await whoami(app, await impersonateCookie())).toEqual({ user: alice })
   })
 
   it('署名が壊れた Cookie は無視して Dev User に戻る', async () => {
-    const app = harness(bypassAuth())
+    const app = harness(bypassAuth)
     expect(await whoami(app, `${IMPERSONATE_COOKIE}=alice.forged-signature`)).toEqual({ user: DEV_USER })
   })
 
-  it('?guest=1 で未ログイン状態を見られる', async () => {
-    const res = await harness(bypassAuth()).request('/whoami?guest=1', {}, {})
-    expect(await res.json()).toEqual({ user: null })
-  })
+  it('signOut すると未ログインになり、signIn で戻れる', async () => {
+    const app = harness(bypassAuth)
+    const signedOut = cookieHeader(await post(app, '/signout', await impersonateCookie()))
+    expect(await whoami(app, signedOut)).toEqual({ user: null })
 
-  it('signOut で Cookie が消える', async () => {
-    const res = await post(harness(bypassAuth()), '/signout')
-    expect(res.headers.getSetCookie()[0]).toMatch(/^impersonate=;.*Max-Age=0/)
+    const signedIn = cookieHeader(await post(app, '/signin', signedOut))
+    expect(await whoami(app, signedIn)).toEqual({ user: alice })
   })
 })
 
@@ -99,7 +104,7 @@ describe('authFromEnv（本番/バイパスの選択）', () => {
   it('バイパス無効なら impersonate Cookie を渡しても未ログイン', async () => {
     const cookie = await impersonateCookie()
     const app = harness(authFromEnv())
-    expect(await whoami(app, cookie, {})).toEqual({ user: null })
+    expect(await whoami(app, cookie)).toEqual({ user: null })
     expect(await whoami(app, cookie, { DEV_BYPASS_AUTH: '0' })).toEqual({ user: null })
   })
 
@@ -107,6 +112,6 @@ describe('authFromEnv（本番/バイパスの選択）', () => {
     const app = harness(authFromEnv())
     expect(await whoami(app, '', { DEV_BYPASS_AUTH: '1' })).toEqual({ user: DEV_USER })
     expect(await whoami(app, '', { BYPASS_AUTH: 'true' })).toEqual({ user: DEV_USER })
-    expect(await whoami(app, '', {})).toEqual({ user: null })
+    expect(await whoami(app, '')).toEqual({ user: null })
   })
 })

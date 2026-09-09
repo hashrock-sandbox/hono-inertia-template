@@ -115,7 +115,7 @@ export interface AuthProvider {
 | 実装 | いつ選ばれるか | 中身 |
 | --- | --- | --- |
 | `sessionAuth` | 既定（本番） | 署名付きセッション Cookie の id を `SessionStore` で引く。ストアはインメモリのスタブなので D1 に差し替える |
-| `bypassAuth` | `DEV_BYPASS_AUTH=1`（または `BYPASS_AUTH=1`） | 署名付き `impersonate` Cookie があればそのユーザ、無ければ Dev User。`?guest=1` で未ログイン状態を見られる |
+| `bypassAuth` | `DEV_BYPASS_AUTH=1`（または `BYPASS_AUTH=1`） | 署名付き `impersonate` Cookie にユーザをそのまま載せる。Cookie が無ければ Dev User。`/auth/signout` すると未ログイン状態になる |
 
 選択は `app/auth/index.ts` の `authFromEnv()` が 1 箇所で行い、`createApp({ auth })` の既定値になります。
 ミドルウェア（`app/auth/middleware.ts`）は `c.set('user', await auth.resolve(c))` するだけで、
@@ -127,7 +127,7 @@ impersonate Cookie を渡しても無視されます（`app/auth/auth.test.ts` �
 1. `app/auth/sessionAuth.ts` の `SessionStore` を D1 実装に置き換える（`memorySessionStore` と同じ 3 メソッド）
 2. Google OAuth などの callback ルートで `await auth.signIn(c, user)` を呼ぶ。Cookie の書き方を各所に複製しない
 3. ログイン必須のハンドラでは `requireUser(c)` を使う（未ログインなら 401。`GET /me` が例）
-4. 本番には `wrangler secret put AUTH_SECRET` で署名鍵を入れる
+4. 本番には `wrangler secret put AUTH_SECRET` で署名鍵を入れる（未設定時は開発用の固定鍵で動く）
 
 ハンドラの単体テストは、`resolve` が固定ユーザを返すだけのモック provider を `createApp({ auth })` に渡せば
 DB も Cookie も無しで書けます（`app/server.test.ts`）。

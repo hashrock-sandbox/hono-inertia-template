@@ -1,8 +1,7 @@
-import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
-import { authCookieOptions, authSecret } from './cookie'
+import { signedAuthCookie } from './cookie'
 import type { AuthProvider, SessionUser } from './provider'
 
-export const SESSION_COOKIE = 'session'
+const session = signedAuthCookie('session')
 
 /**
  * セッションの保存先。本番では D1 などに差し替える。
@@ -44,18 +43,16 @@ export function memorySessionStore(): SessionStore {
 export function sessionAuth(store: SessionStore = memorySessionStore()): AuthProvider {
   return {
     async resolve(c) {
-      const sessionId = await getSignedCookie(c, authSecret(c.env), SESSION_COOKIE)
-      if (!sessionId) return null
-      return store.find(sessionId)
+      const sessionId = await session.read(c)
+      return sessionId ? store.find(sessionId) : null
     },
     async signIn(c, user) {
-      const sessionId = await store.create(user)
-      await setSignedCookie(c, SESSION_COOKIE, sessionId, authSecret(c.env), authCookieOptions(c))
+      await session.write(c, await store.create(user))
     },
     async signOut(c) {
-      const sessionId = await getSignedCookie(c, authSecret(c.env), SESSION_COOKIE)
+      const sessionId = await session.read(c)
       if (sessionId) await store.delete(sessionId)
-      deleteCookie(c, SESSION_COOKIE, { path: '/' })
+      session.clear(c)
     },
   }
 }

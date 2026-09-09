@@ -1,15 +1,20 @@
 import { Hono } from 'hono'
 import type { AuthProvider } from '../auth'
-import { envFlag } from '../auth/cookie'
-import type { Bindings, Env } from '../env'
-import { createScenarioUser, findScenario, scenarios } from './definitions'
+import { isScenariosEnabled, type Env } from '../env'
+import { createScenarioUser, scenarios } from './definitions'
 
-export function isScenariosEnabled(env: Bindings): boolean {
-  return envFlag(env.SCENARIOS_ENABLED)
-}
+/** マウント先。server.ts の app.route と一覧ページのリンクが同じ値を使う。 */
+export const SCENARIOS_BASE = '/__scenarios'
+
+/** 一覧ページに渡す props。シナリオ定義は静的なので 1 回だけ作る。 */
+const scenarioList = scenarios.map(({ name, description }) => ({
+  name,
+  description,
+  url: `${SCENARIOS_BASE}/${name}`,
+}))
 
 /**
- * `/__scenarios` 配下のルート。createApp から `app.route('/__scenarios', scenarioRoutes(auth))` で載せる。
+ * `/__scenarios` 配下のルート。createApp から `app.route(SCENARIOS_BASE, scenarioRoutes(auth))` で載せる。
  *
  * - GET /__scenarios                 一覧ページ
  * - GET /__scenarios/:name           使い捨てユーザで signIn → 状態を作る → 303 で画面へ
@@ -24,17 +29,9 @@ export function scenarioRoutes(auth: AuthProvider) {
       if (!isScenariosEnabled(c.env)) return c.notFound()
       await next()
     })
-    .get('/', (c) =>
-      c.render('Scenarios/Index', {
-        scenarios: scenarios.map(({ name, description }) => ({
-          name,
-          description,
-          url: `/__scenarios/${name}`,
-        })),
-      })
-    )
+    .get('/', (c) => c.render('Scenarios/Index', { scenarios: scenarioList }))
     .get('/:name', async (c) => {
-      const scenario = findScenario(c.req.param('name'))
+      const scenario = scenarios.find((s) => s.name === c.req.param('name'))
       if (!scenario) return c.notFound()
 
       const user = createScenarioUser(scenario.name)
