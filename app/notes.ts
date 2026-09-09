@@ -46,10 +46,14 @@ export function findNote(id: string): Note | undefined {
   return store.get(id)
 }
 
-export function createNote(input: NoteInput): Note {
-  const at = now()
+/**
+ * `id` / `now` は省略可。テストや UI シナリオで決定的な値を入れたいときだけ渡す
+ * （並び順や表示時刻を固定してスクリーンショット比較を安定させる）。
+ */
+export function createNote(input: NoteInput, opts: { id?: string; now?: string } = {}): Note {
+  const at = opts.now ?? now()
   const note: Note = {
-    id: crypto.randomUUID(),
+    id: opts.id ?? crypto.randomUUID(),
     title: input.title,
     body: input.body,
     createdAt: at,
@@ -69,6 +73,11 @@ export function updateNote(id: string, input: NoteInput): Note | undefined {
 
 export function deleteNote(id: string): boolean {
   return store.delete(id)
+}
+
+/** 全件削除。UI シナリオの初期化用で、本番ルートからは呼ばない。 */
+export function clearNotes(): void {
+  store.clear()
 }
 
 /** フォーム入力のバリデーション。正規化した値と、フィールドごとのエラーを返す。 */

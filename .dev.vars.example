@@ -1,0 +1,7 @@
+# `cp .dev.vars.example .dev.vars` でローカル開発用の環境変数になる（.dev.vars は git 管理外）。
+# 認証をバイパスし、固定の Dev User（または impersonate Cookie のユーザ）でログイン扱いにする
+DEV_BYPASS_AUTH=1
+# /__scenarios/* を有効にする。本番では設定しない
+SCENARIOS_ENABLED=1
+# Cookie 署名の秘密鍵。未設定なら開発用の固定値が使われる。本番は `wrangler secret put AUTH_SECRET`
+AUTH_SECRET=change-me-in-production
