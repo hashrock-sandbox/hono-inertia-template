@@ -8,6 +8,7 @@
     "preview": "$npm_execpath run build && vite preview",
     "deploy": "$npm_execpath run build && wrangler deploy",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
@@ -27,6 +28,7 @@
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
     "vite-ssr-components": "^0.5.2",
+    "vitest": "^5.0.0",
     "wrangler": "^4.17.0"
   }
 }

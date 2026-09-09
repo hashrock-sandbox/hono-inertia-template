@@ -31,6 +31,8 @@ app/
   root-view.tsx      SSR する HTML シェル
   styles.css         Tailwind エントリ
   env.ts             Worker の環境型（バインディングを足す場所）
+  auth/              AuthProvider（本番: sessionAuth / 開発: bypassAuth）とミドルウェア
+  scenarios/         UI テスト用シナリオ（/__scenarios/*、SCENARIOS_ENABLED 時のみ）
   notes.ts           サンプルのインメモリストア
   pages.gen.ts       ページ名と props 型（vite が自動生成）
   pages/**           Inertia ページ（ファイル名 = c.render の第1引数）
@@ -42,8 +44,10 @@ public/              静的アセット（そのまま配信される）
 
 ```sh
 pnpm install
+cp .dev.vars.example .dev.vars   # 認証バイパスとシナリオを有効にする（任意）
 pnpm dev          # http://localhost:5173
 pnpm typecheck    # tsc --noEmit
+pnpm test         # vitest run
 pnpm build        # dist/ に本番ビルド
 pnpm preview      # ビルドしてローカルで確認
 ```
@@ -96,10 +100,53 @@ pnpm wrangler d1 create <db-name>       # 出力の database_id を wrangler.jso
 
 **Cloudflare KV** — 単純な key-value でよければ `kv_namespaces` を足すのが最短です。
 
-### 認証
+### 認証を足す
 
-このテンプレートには含めていません。追加するなら Hono のミドルウェアで
-`c.set('user', ...)` し、`app/env.ts` の `Variables` に型を足すのが素直です。
+認証は `app/auth/provider.ts` の **AuthProvider** に切り出してあり、アプリはこの interface だけに依存します。
+
+```ts
+export interface AuthProvider {
+  resolve(c): Promise<SessionUser | null>   // 毎リクエスト、ミドルウェアが呼ぶ
+  signIn(c, user): Promise<void>            // 以後の resolve が user を返すようにする
+  signOut(c): Promise<void>
+}
+```
+
+| 実装 | いつ選ばれるか | 中身 |
+| --- | --- | --- |
+| `sessionAuth` | 既定（本番） | 署名付きセッション Cookie の id を `SessionStore` で引く。ストアはインメモリのスタブなので D1 に差し替える |
+| `bypassAuth` | `DEV_BYPASS_AUTH=1`（または `BYPASS_AUTH=1`） | 署名付き `impersonate` Cookie にユーザをそのまま載せる。Cookie が無ければ Dev User。`/auth/signout` すると未ログイン状態になる |
+
+選択は `app/auth/index.ts` の `authFromEnv()` が 1 箇所で行い、`createApp({ auth })` の既定値になります。
+ミドルウェア（`app/auth/middleware.ts`）は `c.set('user', await auth.resolve(c))` するだけで、
+バイパスや impersonate の分岐は provider の中に閉じています。バイパス無効時は `sessionAuth` しか呼ばれないので、
+impersonate Cookie を渡しても無視されます（`app/auth/auth.test.ts` で固定）。
+
+**実際にログインを組み込む手順**
+
+1. `app/auth/sessionAuth.ts` の `SessionStore` を D1 実装に置き換える（`memorySessionStore` と同じ 3 メソッド）
+2. Google OAuth などの callback ルートで `await auth.signIn(c, user)` を呼ぶ。Cookie の書き方を各所に複製しない
+3. ログイン必須のハンドラでは `requireUser(c)` を使う（未ログインなら 401。`GET /me` が例）
+4. 本番には `wrangler secret put AUTH_SECRET` で署名鍵を入れる（未設定時は開発用の固定鍵で動く）
+
+ハンドラの単体テストは、`resolve` が固定ユーザを返すだけのモック provider を `createApp({ auth })` に渡せば
+DB も Cookie も無しで書けます（`app/server.test.ts`）。
+
+### UI テスト用シナリオ
+
+ブラウザテスト（Playwright など）が「ログインして、決まった状態の画面を開く」を 1 回の GET で済ませるための仕組みです。
+`.dev.vars` で `SCENARIOS_ENABLED=1` のときだけ応答し、それ以外は 404 です。
+
+| URL | 動き |
+| --- | --- |
+| `GET /__scenarios` | シナリオの一覧ページ |
+| `GET /__scenarios/empty` | ノート 0 件にして 303 → `/notes` |
+| `GET /__scenarios/typical` | ノート 3 件を固定の id・時刻で作って 303 → `/notes` |
+| `GET /__scenarios/<name>?format=json` | 遷移せず、作ったユーザと状態を JSON で返す |
+
+各シナリオは使い捨てユーザを作って **`auth.signIn(c, user)` を呼ぶだけ**で、Cookie やミドルウェアには触りません。
+シナリオの定義は `app/scenarios/definitions.ts` に足します。`createNote` は `{ id, now }` を受け取れるので、
+表示順や日時を固定してスクリーンショット比較を安定させられます。
 
 ## メモ
 
